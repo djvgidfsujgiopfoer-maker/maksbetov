@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Тапай персонажа</title>
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  background: url('background.jpg') no-repeat center bottom;
+  background-size: cover;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+body, #character { touch-action: manipulation; }
+#gameWrap { position: relative; width: 90vw; max-width: 400px; text-align: center; overflow: visible; }
+
+/* Счётчик */
+#counter { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 0; pointer-events: none; z-index: 10; white-space: nowrap; transition: opacity 0.3s ease; }
+#counter img { height: clamp(100px,10vw,70px); width: auto; vertical-align: middle; }
+#counterNumber { font-weight: bold; font-size: clamp(20px,6vw,40px); color: #3c9c44; text-shadow:2px 2px 4px rgba(0,0,0,0.4); line-height:1; transform:translateY(-2px); }
+
+/* Персонаж */
+#characterWrapper { display:inline-block; transition: transform 0.12s ease, opacity 0.3s ease; position: relative; z-index:5; margin-bottom:-5px; }
+#character { display:block; width:100%; height:auto; cursor:pointer; -webkit-user-drag:none; user-drag:none; }
+
+/* Главное меню */
+#gameMenu { display:flex; justify-content:center; height:120px; border-radius:10px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:50; position: relative; background-color:#27792e; }
+.menuBtn { flex:1; background-color:#1c441f; color:#fff; font-weight:bold; font-size:clamp(20px,5vw,28px); padding:25px 0; border:none; cursor:pointer; transition: background-color 0.2s ease, transform 0.1s ease; }
+.menuBtn:not(:last-child) { border-right:1px solid rgba(255,255,255,0.3); }
+.menuBtn:hover { background-color:#2e8c34; transform: scale(1.02); }
+
+/* Эффект + */
+.coin { position:absolute; font-size:clamp(14px,4vw,24px); font-weight:bold; color:rgb(0,255,76); pointer-events:none; animation:coinAnim 0.8s forwards; text-shadow:0 1px 2px rgba(0,0,0,0.3); white-space:nowrap; z-index:999; }
+@keyframes coinAnim { 0%{opacity:1; transform:translateY(0) scale(1);} 40%{transform:translateY(-26px) scale(1.4);} 80%{transform:translateY(-48px) scale(1.1); opacity:0.6;} 100%{transform:translateY(-70px) scale(0.6); opacity:0;} }
+
+/* Загрузочный экран */
+#loader { position:fixed; top:0; left:0; width:100vw; height:100vh; background:#000; display:flex; justify-content:center; align-items:center; z-index:9999; overflow:hidden; }
+#loader video {height:100%; width:auto; object-fit:contain; }
+.hidden { display:none; }
+
+/* Вкладка улучшений и AirDrop */
+#upgrade-screen, #airdrop-screen { position:absolute; top:0; left:0; width:100%; height:calc(100% - 120px); display:none; flex-direction:column; justify-content:flex-start; align-items:center; z-index:20; background: rgba(0,0,0,0.3); opacity:0; transition: opacity 0.3s ease; }
+#upgrade-screen.active, #airdrop-screen.active { display:flex; opacity:1; }
+
+/* Внутренние вкладки улучшений */
+#upgrade-tabs { display:flex; justify-content:center; margin-top:60px; margin-bottom:40px; gap:20px; }
+.upgrade-tab { background-color:#1c441f; color:#fff; font-weight:bold; font-size:clamp(16px,4vw,24px); padding:14px 28px; border-radius:10px; cursor:pointer; transition:background-color 0.2s ease, transform 0.1s ease; border:none; }
+.upgrade-tab.active { background-color:#3da64b; }
+.upgrade-tab:hover { background-color:#2e8c34; transform:scale(1.05); }
+
+/* Контент внутренней вкладки */
+.upgrade-content { display:none; flex-direction:column; align-items:center; justify-content:center; flex-grow:1; opacity:0; transition: opacity 0.3s ease; }
+.upgrade-content.active { display:flex; opacity:1; }
+#buy-2x, #buy-3x, #buy-4x, #buy-5x, #buy-6x { padding:20px 100px; font-size:clamp(18px,5vw,28px); cursor:pointer; border:none; border-radius:20px; background-color:#2e8c34; color:#fff; font-weight:bold; box-shadow:0 4px 8px rgba(0,0,0,0.3); transition:transform 0.1s ease, background-color 0.2s ease; margin-top:15px; }
+#buy-2x:hover, #buy-3x:hover, #buy-4x:hover, #buy-5x:hover, #buy-6x:hover { background-color:#3da64b; transform:scale(1.05); }
+
+/* Сообщение */
+#upgrade-msg { position:absolute; top:10%; left:50%; transform:translateX(-50%); background:rgba(50,150,60,0.9); color:#fff; font-size:clamp(18px,5vw,26px); padding:12px 24px; border-radius:10px; z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease; }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <video autoplay muted playsinline>
+    <source src="pivko.mp4" type="video/mp4">
+  </video>
+</div>
+
+<div id="gameWrap">
+  <!-- Счётчик -->
+  <div id="counter">
+    <img src="govno.png" alt="Свинкойнов" id="counterText">
+    <span id="counterNumber">0</span>
+  </div>
+
+  <!-- Персонаж -->
+  <div id="characterWrapper">
+    <img id="character" src="obichni.png" alt="Персонаж">
+  </div>
+
+  <!-- Экран улучшений -->
+  <div id="upgrade-screen">
+    <div id="upgrade-tabs">
+      <button class="upgrade-tab active" data-target="profit">Прибыль за тап</button>
+      <button class="upgrade-tab" data-target="character">Персонаж</button>
+    </div>
+
+    <!-- Прибыль за тап -->
+    <div id="upgrade-profit" class="upgrade-content active">
+      <button id="buy-2x">Купить X2 за 1 тап (1000 🐷)</button>
+      <button id="buy-3x" style="display:none;">Купить X3 за 1 тап (2000 🐷)</button>
+      <button id="buy-4x" style="display:none;">Купить X4 за 1 тап (4000 🐷)</button>
+      <button id="buy-5x" style="display:none;">Купить X5 за 1 тап (6000 🐷)</button>
+      <button id="buy-6x" style="display:none;">Купить X6 за 1 тап (8000 🐷)</button>
+      <p id="nextHint" style="margin-top:12px;color:#fff;font-size:22px;font-weight:bold;text-shadow:1px 1px 3px rgba(0,0,0,0.5)"></p>
+    </div>
+
+    <!-- Персонаж -->
+    <div id="upgrade-character" class="upgrade-content">
+      <p style="font-size:22px; color:#fff;">Тут пока ничего нет 😎</p>
+    </div>
+  </div>
+
+  <!-- AirDrop -->
+  <div id="airdrop-screen"></div>
+
+  <!-- Главное меню -->
+  <div id="gameMenu">
+    <button class="menuBtn">Улучшения</button>
+    <button class="menuBtn">Майнинг</button>
+    <button class="menuBtn">Аирдроп</button>
+  </div>
+
+  <div id="upgrade-msg" class="hidden"></div>
+</div>
+
+<script>
+(function(){
+let ch=document.getElementById('character');
+const wrapper=document.getElementById('characterWrapper');
+const counterNumber=document.getElementById('counterNumber');
+const loader=document.getElementById('loader');
+const menuBtns=document.querySelectorAll('.menuBtn');
+const upgradeScreen=document.getElementById('upgrade-screen');
+const airdropScreen=document.getElementById('airdrop-screen');
+const upgradeMsg=document.getElementById('upgrade-msg');
+const upgradeTabs=document.querySelectorAll('.upgrade-tab');
+const upgradeContents=document.querySelectorAll('.upgrade-content');
+
+let score=parseInt(localStorage.getItem('svinkoini'))||0;
+let multiplier=parseInt(localStorage.getItem('multiplier'))||1;
+counterNumber.textContent=score;
+
+const normal='obichni.png';
+const press='jmy.png';
+
+const bgMusic=new Audio('mellroy.mp3');
+bgMusic.loop=true;
+bgMusic.volume=0.5;
+let bgMusicStarted=false;
+function startMusicOnce(){ if(!bgMusicStarted){ bgMusic.play().catch(()=>{}); bgMusicStarted=true; } }
+
+function createPlus(x,y,amount){
+  const el=document.createElement('div');
+  el.className='coin';
+  el.textContent='+'+amount;
+  const rect=wrapper.getBoundingClientRect();
+  el.style.left=x-rect.left + (Math.random()-0.5)*40 +'px';
+  el.style.top=y-rect.top + (Math.random()-0.5)*20 +'px';
+  wrapper.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); },800);
+}
+
+function doTap(x,y,times){
+  if(!times||times<1)times=1;
+  for(let i=0;i<times;i++){
+    score+=multiplier;
+    createPlus(x,y,multiplier);
+  }
+  localStorage.setItem('svinkoini',score);
+  counterNumber.textContent=score;
+  wrapper.style.transform='scale(1.08)';
+  ch.src=press;
+  setTimeout(()=>{ wrapper.style.transform=''; ch.src=normal; },140);
+  startMusicOnce();
+}
+
+function showUpgradeMsg(text){
+  upgradeMsg.textContent=text;
+  upgradeMsg.classList.remove('hidden');
+  upgradeMsg.style.opacity=1;
+  setTimeout(()=>{ upgradeMsg.style.opacity=0; setTimeout(()=>upgradeMsg.classList.add('hidden'),300); },1500);
+}
+
+// Вкладки
+upgradeTabs.forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    upgradeTabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const target=tab.dataset.target;
+    upgradeContents.forEach(c=>c.classList.remove('active'));
+    document.getElementById('upgrade-'+target).classList.add('active');
+  });
+});
+
+// Главное меню
+menuBtns[0].addEventListener('click',()=>{ upgradeScreen.style.display='flex'; upgradeScreen.classList.add('active'); airdropScreen.style.display='none'; wrapper.style.opacity=0; counterNumber.parentNode.style.opacity=0; });
+menuBtns[1].addEventListener('click',()=>{ upgradeScreen.style.display='none'; airdropScreen.style.display='none'; wrapper.style.opacity=1; counterNumber.parentNode.style.opacity=1; });
+menuBtns[2].addEventListener('click',()=>{ airdropScreen.style.display='flex'; upgradeScreen.style.display='none'; wrapper.style.opacity=0; counterNumber.parentNode.style.opacity=0; });
+
+// ---- Новая система улучшений ----
+const prices = {2:1000,3:2000,4:4000,5:6000,6:8000};
+const buy2x=document.getElementById('buy-2x');
+const buy3x=document.getElementById('buy-3x');
+const buy4x=document.getElementById('buy-4x');
+const buy5x=document.getElementById('buy-5x');
+const buy6x=document.getElementById('buy-6x');
+const nextHint=document.getElementById('nextHint');
+
+function updateUpgradeButtons(){
+  [buy2x,buy3x,buy4x,buy5x,buy6x].forEach(b=>{ if(b) b.style.display='none'; });
+  if(multiplier<6){
+    const next=multiplier+1;
+    const btn=document.getElementById('buy-'+next+'x');
+    if(btn) btn.style.display='block';
+    nextHint.textContent='Следующее улучшение: X'+next+' за '+prices[next]+' 🐷';
+  } else {
+    nextHint.textContent='Вы купили все улучшения! 🎉';
+  }
+}
+updateUpgradeButtons();
+
+[2,3,4,5,6].forEach(n=>{
+  const btn=document.getElementById('buy-'+n+'x');
+  if(!btn)return;
+  btn.addEventListener('click',()=>{
+    const price=prices[n];
+    if(multiplier!==n-1){ showUpgradeMsg('Сначала купите предыдущее улучшение!'); return; }
+    if(score<price){ showUpgradeMsg('Недостаточно свинкойнов!'); return; }
+    score-=price;
+    multiplier=n;
+    localStorage.setItem('svinkoini',score);
+    localStorage.setItem('multiplier',multiplier);
+    counterNumber.textContent=score;
+    showUpgradeMsg('Куплено X'+n+'! 1 тап = '+multiplier+' свинкойна');
+    updateUpgradeButtons();
+  });
+});
+
+// Тап
+function enableTap(){
+  const isTouch='ontouchstart' in window||navigator.maxTouchPoints>0;
+  if(isTouch){ ch.addEventListener('touchstart',tapHandler,{passive:false}); }
+  else{ ch.addEventListener('pointerdown',tapHandler); }
+}
+function tapHandler(e){
+  const x=e.clientX||e.touches[0].clientX;
+  const y=e.clientY||e.touches[0].clientY;
+  doTap(x,y,1);
+  if(e.preventDefault)e.preventDefault();
+}
+enableTap();
+
+// Лоадер
+window.addEventListener('load',()=>{ setTimeout(()=>{ loader.style.display='none'; },4000); });
+
+})();
+</script>
+
+</body>
+</html>
